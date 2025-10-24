@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Tow Dispatch POC — Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body { margin:0; font-family: system-ui, sans-serif; }
+    header { padding: 10px 12px; border-bottom: 1px solid #ddd; }
+    #map { height: calc(100vh - 56px); }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid #ddd; margin-right:8px;}
+  </style>
+</head>
+<body>
+<header>
+  <strong>Tow Dispatch POC</strong>
+  <span class="pill" id="status">loading…</span>
+  <span class="pill">Mode: <select id="mode"><option>closest</option><option>rotation</option></select></span>
+  <button id="seed">Create Test Call</button>
+</header>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const api = "http://localhost:8000";
+const map = L.map('map').setView([32.7157, -117.1611], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+
+let unitMarkers = {};
+let callMarkers = {};
+
+async function fetchState(){
+  const res = await fetch(api + "/debug/state");
+  const data = await res.json();
+  document.getElementById('status').textContent = "units: " + data.units.length + " | calls: " + data.calls.length;
+
+  // units
+  for(const u of data.units){
+    const key = u.unit_id;
+    if(!unitMarkers[key]){
+      unitMarkers[key] = L.circleMarker([u.lat, u.lon], {radius: 6}).addTo(map).bindPopup(key);
+    }else{
+      unitMarkers[key].setLatLng([u.lat, u.lon]);
+    }
+  }
+
+  // calls
+  for(const c of data.calls){
+    const key = c.call_id;
+    if(!callMarkers[key]){
+      callMarkers[key] = L.marker([c.lat, c.lon]).addTo(map).bindPopup(key + " — " + (c.reason||""));
+    }else{
+      callMarkers[key].setLatLng([c.lat, c.lon]);
+    }
+  }
+}
+
+async function createTestCall(){
+  const id = "CALL-" + Math.floor(Math.random()*100000);
+  const lat = 32.7157 + (Math.random()-0.5)*0.05;
+  const lon = -117.1611 + (Math.random()-0.5)*0.05;
+  await fetch(api + "/cad/event", {method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({call_id:id, lat, lon, reason:"Accident", priority:2, zone:"Z-1"})});
+  const mode = document.getElementById('mode').value;
+  const rec = await fetch(api + "/dispatch/recommendation?call_id=" + id + "&mode=" + mode).then(r=>r.json());
+  if(rec.unit_id){
+    await fetch(api + "/dispatch/assign", {method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify({call_id:id, unit_id:rec.unit_id})});
+    alert("Assigned " + rec.unit_id + " via " + rec.mode);
+  }else{
+    alert("No recommendation available");
+  }
+}
+
+document.getElementById('seed').addEventListener('click', createTestCall);
+setInterval(fetchState, 1500);
+fetchState();
+</script>
+</body>
+</html>

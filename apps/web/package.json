@@ -1,0 +1,27 @@
+{
+  "name": "towops-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "firebase": "10.13.1",
+    "zod": "3.23.8",
+    "openai": "4.52.0",
+    "pdfkit": "0.15.0",
+    "dayjs": "1.11.11"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "@types/node": "20.11.30",
+    "@types/react": "18.2.47",
+    "@types/react-dom": "18.2.18"
+  }
+}
